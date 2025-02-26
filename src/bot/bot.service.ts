@@ -10,7 +10,7 @@ import { customerMenu } from './menus/customer.menu';
 import { callback } from 'telegraf/typings/button';
 import { CustomerServiceQueue } from './models/customerServiceQueue.model';
 import { text } from 'stream/consumers';
-import { averageTimeOptions, durationOptions, endTimeKeyboard, getTimeTable, startTimeKeyboard, timeSlots, weekTable } from './keyboards/inlineKeyboard';
+import { averageTimeOptions, customerSelectServantKeyboard, durationOptions, endTimeKeyboard, getTimeTable, startTimeKeyboard, timeSlots, weekTable, weekTableCustomer } from './keyboards/inlineKeyboard';
 import { ServantTimeTable } from './models/servantTimeTable.model';
 import { TimeSelection } from './helpers/TimeSelection';
 import { getServantBookedTimes } from './helpers/bookedTime';
@@ -29,6 +29,7 @@ export class BotService {
   ) { }
 
   protected service = '';
+  protected SERVANT;
 
   async start(ctx: Context) {
     try {
@@ -252,18 +253,12 @@ export class BotService {
       service_5: "⌚ Soatsoz"
     };
 
-
     this.service = services[contextAction];
 
-
-    const inlineKeyboard = [
-      [{ text: '👤 Ism', callback_data: 'ism' }],
-      [{ text: '⭐ Reyting', callback_data: 'rating' }],
-      [{ text: '🚩 Manzil', callback_data: 'location' }],
-    ]
+    
     await ctx.reply('🗳️ Quyidagilardan birini tanlang', {
       reply_markup: {
-        inline_keyboard: inlineKeyboard
+        inline_keyboard: customerSelectServantKeyboard
       }
     })
     await ctx.answerCbQuery();
@@ -286,6 +281,7 @@ export class BotService {
       attributes: ["user_id", "first_name", "phone_number"], 
     });
 
+
     if(servants.length == 0){
       await ctx.answerCbQuery();
       return await ctx.editMessageText(`🚫 Hozircha nomzodlar mavjud emas.`)
@@ -295,6 +291,10 @@ export class BotService {
         text: `${servant.first_name} ${servant.phone_number}`,
         callback_data: `servant-${servant.user_id}`
       }
+    ]);
+    inlineKeyboard.push([
+      { text: "◀ ORTGA", callback_data: "customer_back_from_servant_list" },
+      { text: "KEYINGI ▶", callback_data: "next_customer" }
     ]);
     await ctx.answerCbQuery();
     return await ctx.editMessageText(`${this.service} xizmati`, {
@@ -331,13 +331,13 @@ export class BotService {
     const inlineKeyboard = servents.map(servant => [
       {
         text: `${servant.first_name}  ${getStars(servant.rating)}`,
-        callback_data: `servant-${servant.user_id}`
+        callback_data: `servantRating-${servant.user_id}`
       }
     ]);
 
     inlineKeyboard.push([
-      { text: "◀ ORTGA", callback_data: "customer_back" },
-      { text: "NAVBATDAGI ▶", callback_data: "next_customer" }
+      { text: "◀ ORTGA", callback_data: "customer_back_from_servant_list" },
+      { text: "KEYINGI ▶", callback_data: "next_customer" }
     ]);
 
     await ctx.editMessageText("🏆 Eng yaxshi nomzodlar:", {
@@ -348,7 +348,45 @@ export class BotService {
     await ctx.answerCbQuery();
   }
 
-  async onClickServant(ctx){
+  async onCustomerBackFromRating(ctx){
+    const user_id = ctx.from?.id;
+    const customer = await this.customerModel.findByPk(user_id);
+
+    if (!customer) {
+      return await ctx.reply(`⚠️ Botdan foydalanish uchun, iltimos ro'yxatdan o'ting`, {
+        parse_mode: "HTML",
+        ...Markup.keyboard([["📝 Ro'yxatdan o'tish"]]).resize().oneTime()
+      });
+    }
+
+    const servents = await this.servantModel.findAll({
+      where:{job: this.service},
+      order: [["rating", "DESC"]],
+      limit: 10
+    });
+
+    const getStars = (rating) => "⭐".repeat(rating) || "⭐";
+    const inlineKeyboard = servents.map(servant => [
+      {
+        text: `${servant.first_name}  ${getStars(servant.rating)}`,
+        callback_data: `servant-${servant.user_id}`
+      }
+    ]);
+
+    inlineKeyboard.push([
+      { text: "◀ ORTGA", callback_data: "customer_back_from_servant_list" },
+      { text: "KEYINGI ▶", callback_data: "next_customer" }
+    ]);
+
+    await ctx.editMessageText("🏆 Eng yaxshi nomzodlar:", {
+      reply_markup: {
+        inline_keyboard: inlineKeyboard
+      }
+    });
+    await ctx.answerCbQuery();
+  }
+
+  async onClickServantFromName(ctx){
     const user_id = ctx.from?.id;
     const customer = await this.customerModel.findByPk(user_id);
     const callbackData = ctx.callbackQuery.data;
@@ -362,6 +400,7 @@ export class BotService {
     }
 
     const servant_id = callbackData.split("-")[1];
+
     const servant = await this.servantModel.findByPk(servant_id);
 
     if (!servant) {
@@ -391,8 +430,54 @@ export class BotService {
     });
     await ctx.answerCbQuery()
 
+  }
+
+  async onClickServantFromRating(ctx) {
+    const user_id = ctx.from?.id;
+    const customer = await this.customerModel.findByPk(user_id);
+    const callbackData = ctx.callbackQuery.data;
+
+
+    if (!customer) {
+      return await ctx.reply(`⚠️ Botdan foydalanish uchun, iltimos ro'yxatdan o'ting`, {
+        parse_mode: "HTML",
+        ...Markup.keyboard([["📝 Ro'yxatdan o'tish"]]).resize().oneTime()
+      });
+    }
+
+    const servant_id = callbackData.split("-")[1];
+    const servant = await this.servantModel.findByPk(servant_id);
+    this.SERVANT = servant;
+    if (!servant) {
+      await ctx.answerCbQuery();
+      return await ctx.reply("🚫 Usta topilmadi.");
+    }
+
+    const servantInfo = `👨‍🔧 <b>USTA MA’LUMOTLARI:</b>\n\n` +
+      `<b>ISMI:</b> ${servant.first_name}\n` +
+      `<b>TELEFON RAQAMI:</b> ${servant.phone_number}\n` +
+      `<b>USTAXONA NOMI:</b> ${servant.workshop_name}\n` +
+      `<b>MANZILI:</b> ${servant.address}\n` +
+      `<b>MO'LJAL:</b> ${servant.landmark}`;
+
+    const inlineKeyboard = [
+      [{ text: "📍 LOKATSIYASI", callback_data: `manzil-${servant_id}` },
+      { text: "📅 VAQT OLISH", callback_data: `book-${servant_id}` }],
+      [{ text: "⭐ BAHOLASH", callback_data: `rate-${servant_id}` },
+      { text: "◀ ORTGA", callback_data: "customer_back_from_rating" }]
+    ];
+
+    await ctx.editMessageText(servantInfo, {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: inlineKeyboard
+      }
+    });
+    await ctx.answerCbQuery()
 
   }
+
+
 
   async onClickServantLocation(ctx){
     const user_id = ctx.from?.id;
@@ -423,10 +508,10 @@ export class BotService {
     await ctx.answerCbQuery();
   }
 
+
   async onCustomerBack(ctx) {
-    const user_id = ctx.from?.id;
-    const customer = await this.customerModel.findByPk(user_id);
-    const callbackData = ctx.callbackQuery.data;
+    const customer_id = ctx.from?.id;
+    const customer = await this.customerModel.findByPk(customer_id);
 
     if (!customer) {
       return await ctx.reply(`⚠️ Botdan foydalanish uchun, iltimos ro'yxatdan o'ting`, {
@@ -435,18 +520,49 @@ export class BotService {
       });
     }
 
-    const inlineKeyboard = [
-      [{ text: '👤 Ism', callback_data: 'ism' }],
-      [{ text: '⭐ Reyting', callback_data: 'rating' }],
-      [{ text: '🚩 Manzil', callback_data: 'location' }],
-    ]
-    await ctx.editMessageText('🗳️ Quyidagilardan birini tanlang', {
+    const servants = await this.servantModel.findAll({
+      where: {job: this.service},
+      limit: 10
+    });
+
+    const inlineKeyboard = servants.map(servant => [
+      {
+        text: `${servant.first_name} ${servant.phone_number}`,
+        callback_data: `servant-${servant.user_id}`
+      }
+    ]);
+
+    inlineKeyboard.push([
+      { text: "◀ ORTGA", callback_data: "customer_back_from_servant_list" },
+      { text: "KEYINGI ▶", callback_data: "next_customer" }
+    ]);
+
+    await ctx.answerCbQuery();
+    return await ctx.editMessageText(`${this.service} xizmati`, {
       reply_markup: {
         inline_keyboard: inlineKeyboard
       }
     })
-    await ctx.answerCbQuery();
+  }
 
+
+  async onCustomerBackFromList(ctx){
+    const customer_id = ctx.from?.id;
+    const customer = await this.customerModel.findByPk(customer_id);
+
+    if (!customer) {
+      return await ctx.reply(`⚠️ Botdan foydalanish uchun, iltimos ro'yxatdan o'ting`, {
+        parse_mode: "HTML",
+        ...Markup.keyboard([["📝 Ro'yxatdan o'tish"]]).resize().oneTime()
+      });
+    }
+
+    await ctx.editMessageText('🗳️ Quyidagilardan birini tanlang', {
+      reply_markup: {
+        inline_keyboard: customerSelectServantKeyboard
+      }
+    })
+    await ctx.answerCbQuery();
   }
 
   async onChooseServentTime(ctx){
@@ -458,9 +574,13 @@ export class BotService {
         ...Markup.keyboard([["📝 Ro'yxatdan o'tish"]]).resize().oneTime()
       });
     }
-    await ctx.reply("Ish kunlari", weekTable)
+    await ctx.editMessageText("🗓️ Haftalik ish kunlari tartibi", {
+      reply_markup: {
+        inline_keyboard: weekTableCustomer
+      }
+    })
+    await ctx.answerCbQuery();
   }
-
 
   async customerChosenServices(ctx: Context) {
     const user_id = ctx.from?.id;
@@ -497,7 +617,7 @@ export class BotService {
       },
     });
   }
-
+  
   async cancelService(ctx: Context) {
     const user_id = ctx.from?.id;
     const queue = await this.customerServiceQueueModel.findOne({
@@ -519,6 +639,93 @@ export class BotService {
   }
 
   
+
+  // tuzatish kerak
+
+  async onBackCustomerWeekTableRating(ctx){
+    const user_id = ctx.from?.id;
+    const customer = await this.customerModel.findByPk(user_id);
+
+    if (!customer) {
+      return await ctx.reply(`⚠️ Botdan foydalanish uchun, iltimos ro'yxatdan o'ting`, {
+        parse_mode: "HTML",
+        ...Markup.keyboard([["📝 Ro'yxatdan o'tish"]]).resize().oneTime()
+      });
+    }
+
+    const servant = this.SERVANT;
+    if (!servant) {
+      await ctx.answerCbQuery();
+      return await ctx.reply("🚫 Usta topilmadi.");
+    }
+
+    const servantInfo = `👨‍🔧 <b>USTA MA’LUMOTLARI:</b>\n\n` +
+      `<b>ISMI:</b> ${servant.first_name}\n` +
+      `<b>TELEFON RAQAMI:</b> ${servant.phone_number}\n` +
+      `<b>USTAXONA NOMI:</b> ${servant.workshop_name}\n` +
+      `<b>MANZILI:</b> ${servant.address}\n` +
+      `<b>MO'LJAL:</b> ${servant.landmark}`;
+
+    const inlineKeyboard = [
+      [{ text: "📍 LOKATSIYASI", callback_data: `manzil-${servant.id}` },
+        { text: "📅 VAQT OLISH", callback_data: `book-${servant.id}` }],
+      [{ text: "⭐ BAHOLASH", callback_data: `rate-${servant.id}` },
+        { text: "◀ ORTGA", callback_data: "customer_back_from_rating" }]
+    ];
+
+    await ctx.editMessageText(servantInfo, {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: inlineKeyboard
+      }
+    });
+    await ctx.answerCbQuery()
+  }
+
+  async onBackCustomerWeekTableFromName(ctx) {
+    const user_id = ctx.from?.id;
+    const customer = await this.customerModel.findByPk(user_id);
+
+    if (!customer) {
+      return await ctx.reply(`⚠️ Botdan foydalanish uchun, iltimos ro'yxatdan o'ting`, {
+        parse_mode: "HTML",
+        ...Markup.keyboard([["📝 Ro'yxatdan o'tish"]]).resize().oneTime()
+      });
+    }
+
+    const servant = this.SERVANT;
+    if (!servant) {
+      await ctx.answerCbQuery();
+      return await ctx.reply("🚫 Usta topilmadi.");
+    }
+
+    const servantInfo = `👨‍🔧 <b>USTA MA’LUMOTLARI:</b>\n\n` +
+      `<b>ISMI:</b> ${servant.first_name}\n` +
+      `<b>TELEFON RAQAMI:</b> ${servant.phone_number}\n` +
+      `<b>USTAXONA NOMI:</b> ${servant.workshop_name}\n` +
+      `<b>MANZILI:</b> ${servant.address}\n` +
+      `<b>MO'LJAL:</b> ${servant.landmark}`;
+
+    const inlineKeyboard = [
+      [{ text: "📍 LOKATSIYASI", callback_data: `manzil-${servant.id}` },
+      { text: "📅 VAQT OLISH", callback_data: `book-${servant.id}` }],
+      [{ text: "⭐ BAHOLASH", callback_data: `rate-${servant.id}` },
+      { text: "◀ ORTGA", callback_data: "customer_back" }]
+    ];
+
+    await ctx.editMessageText(servantInfo, {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: inlineKeyboard
+      }
+    });
+    await ctx.answerCbQuery()
+  }
+
+
+
+
+
 
 
 

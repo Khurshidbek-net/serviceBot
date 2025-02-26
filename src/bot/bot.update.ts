@@ -51,10 +51,19 @@ export class BotUpdate {
     await this.botService.customerChosenServices(ctx);
   }
 
-  @Hears("📅 VAQT OLISH")
+  @Action(/^book-+\d+/)
   async onChooseServentTime(@Ctx() ctx: Context) {
-    console.log("keldioooooooooooo")
     await this.botService.onChooseServentTime(ctx);
+  }
+
+  @Action("back_customer_week_table")
+  async onBackCustomerWeekTable(@Ctx() ctx: Context) {
+    await this.botService.onBackCustomerWeekTableRating(ctx);
+  }
+
+  @Action("back_customer_week_table_from_name")
+  async onBackCustomerWeekTableFromName(@Ctx() ctx: Context) {
+    await this.botService.onBackCustomerWeekTableFromName(ctx);
   }
 
   @Action(/^service_+\d+/)
@@ -73,8 +82,13 @@ export class BotUpdate {
   }
 
   @Action(/^servant-+\d+/)
-  async onClickServant(ctx: Context) {
-    await this.botService.onClickServant(ctx);
+  async onClickServantName(ctx: Context) {
+    await this.botService.onClickServantFromName(ctx);
+  }
+
+  @Action(/^servantRating-+\d+/)
+  async onClickServantRating(ctx: Context) {
+    await this.botService.onClickServantFromRating(ctx);
   }
 
   @Action(/^manzil-+\d+/)
@@ -85,6 +99,16 @@ export class BotUpdate {
   @Action("customer_back")
   async onCustomerBack(ctx: Context) {
     await this.botService.onCustomerBack(ctx);
+  }
+
+  @Action("customer_back_from_rating")
+  async onCustomerBackFromRating(ctx: Context) {
+    await this.botService.onCustomerBackFromRating(ctx);
+  }
+
+  @Action("customer_back_from_servant_list")
+  async onCustomerBackFromList(ctx: Context){
+    await this.botService.onCustomerBackFromList(ctx);
   }
 
 

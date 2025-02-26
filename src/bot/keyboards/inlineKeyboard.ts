@@ -1,7 +1,3 @@
-import moment from "moment";
-import { text } from "stream/consumers";
-import { Markup } from "telegraf";
-import { callback } from "telegraf/typings/button";
 
 export const startTimeKeyboard = [
   [
@@ -73,11 +69,13 @@ export const averageTimeOptions = {
 const today = new Date();
 const weekDays = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 
+const todayIndex = today.getDay();
+
 export const weekTable = Array.from({ length: 7 }, (_, i) => {
   const futureDate = new Date(today);
-  futureDate.setDate(today.getDate() + i); 
+  futureDate.setDate(today.getDate() + i);
 
-  const dayName = weekDays[futureDate.getDay()];
+  const dayName = weekDays[(todayIndex + i) % 7];
   const dayNumber = `${futureDate.getDate()}.${(futureDate.getMonth() + 1)
     .toString()
     .padStart(2, "0")}`;
@@ -87,10 +85,64 @@ export const weekTable = Array.from({ length: 7 }, (_, i) => {
     callback_data: `week_${futureDate.getDate()}-${futureDate.getMonth() + 1}-${futureDate.getFullYear()}`
   };
 }).reduce((acc, curr, index) => {
-  if (index % 2 === 0) acc.push([curr]); 
+  if (index % 2 === 0) acc.push([curr]);
   else acc[acc.length - 1].push(curr);
   return acc;
 }, [] as { text: string; callback_data: string }[][]);
+
+
+
+
+
+// week table for customer
+
+export const weekTableCustomer = Array.from({ length: 7 }, (_, i) => {
+  const futureDate = new Date(today);
+  futureDate.setDate(today.getDate() + i);
+
+  const dayName = weekDays[(todayIndex + i) % 7];
+  const dayNumber = `${futureDate.getDate()}.${(futureDate.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
+
+  return {
+    text: `${dayName}: ${dayNumber}`,
+    callback_data: `week_${futureDate.getDate()}-${futureDate.getMonth() + 1}-${futureDate.getFullYear()}`
+  };
+}).reduce((acc, curr, index) => {
+  if (index % 2 === 0) acc.push([curr]);
+  else acc[acc.length - 1].push(curr);
+  return acc;
+}, [] as { text: string; callback_data: string }[][]);
+weekTableCustomer.push([{ text: "◀ ORTGA", callback_data: "back_customer_week_table" }]);
+
+
+
+export const weekTableCustomerName = Array.from({ length: 7 }, (_, i) => {
+  const futureDate = new Date(today);
+  futureDate.setDate(today.getDate() + i);
+
+  const dayName = weekDays[(todayIndex + i) % 7];
+  const dayNumber = `${futureDate.getDate()}.${(futureDate.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}`;
+
+  return {
+    text: `${dayName}: ${dayNumber}`,
+    callback_data: `week_${futureDate.getDate()}-${futureDate.getMonth() + 1}-${futureDate.getFullYear()}`
+  };
+}).reduce((acc, curr, index) => {
+  if (index % 2 === 0) acc.push([curr]);
+  else acc[acc.length - 1].push(curr);
+  return acc;
+}, [] as { text: string; callback_data: string }[][]);
+weekTableCustomerName.push([{ text: "◀ ORTGA", callback_data: "back_customer_week_table_from_name" }]);
+
+
+
+
+
+
 
 
 export function getTimeTable(
@@ -155,6 +207,16 @@ export function getTimeTable(
   return { date: selectedDate, weekday, timeSlots };
 }
 
+
+export const customerSelectServantKeyboard = [
+  [{ text: '👤 Ism', callback_data: 'ism' }],
+  [{ text: '⭐ Reyting', callback_data: 'rating' }],
+  [{ text: '🚩 Manzil', callback_data: 'location' }],
+]
+
+
+async function getSurvantFreeTime(servant_id: number, ) {
+}
 
 
 

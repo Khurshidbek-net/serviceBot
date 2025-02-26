@@ -1,1 +1,1 @@
-export const BOT_NAME = "ServiceBot"
+export const BOT_NAME = "MuruvvatBot"
